@@ -62,7 +62,7 @@ class ShiftView(View):
         start_time = active_shifts.pop(user_id)
         duration_minutes = int((time.time() - start_time) / 60)
         
-        points_earned = max(1, int(duration_minutes / 10)) 
+        points_earned = int(duration_minutes / 10) 
         
         data = load_data()
         current_points = data.get(user_id, 0)
@@ -115,5 +115,4 @@ async def المباشرين(ctx):
     await ctx.send(msg)
 
 keep_alive()
-bot.run(os.environ['DISCORD_TOKEN'])
-
+bot.run(os.environ['DISCORD_TOKEN']) 
