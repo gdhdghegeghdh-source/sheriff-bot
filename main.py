@@ -4,29 +4,14 @@ from discord.ui import Button, View
 import time
 import json
 import os
-from flask import Flask
-from threading import Thread
-
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "I am alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 DATA_FILE = "sheriff_points.json"
-active_shifts = {}
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -38,88 +23,65 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
+active_shifts = {}
+
 class ShiftView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="تسجيل دخول شفت", style=discord.ButtonStyle.green, custom_id="shift_start")
-    async def start_shift(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="تسجيل دخول", style=discord.ButtonStyle.green, custom_id="clock_in")
+    async def clock_in(self, interaction: discord.Interaction, button: Button):
         user_id = str(interaction.user.id)
-        
-        # منع تسجيل الدخول المتكرر
         if user_id in active_shifts:
-            await interaction.response.send_message("❌ أنت مسجل دخول بالفعل في شفت حالي!", ephemeral=True)
+            await interaction.response.send_message("❌ أنت مسجل دخول بالفعل!", ephemeral=True)
             return
-        
         active_shifts[user_id] = time.time()
-        
-        # جلب النقاط الحالية
-        data = load_data()
-        current_points = data.get(user_id, 0)
-        
-        await interaction.response.send_message(
-            f"✅ **تم تسجيل دخولك بنجاح!**\n📊 نقاطك الحالية: `{current_points}`", 
-            ephemeral=True
-        )
+        await interaction.response.send_message("🟢 تم تسجيل الدخول.", ephemeral=True)
 
-    @discord.ui.button(label="تسجيل خروج شفت", style=discord.ButtonStyle.red, custom_id="shift_end")
-    async def end_shift(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="تسجيل خروج", style=discord.ButtonStyle.red, custom_id="clock_out")
+    async def clock_out(self, interaction: discord.Interaction, button: Button):
         user_id = str(interaction.user.id)
-        
-        # التأكد أن العسكري مسجل دخول
         if user_id not in active_shifts:
-            await interaction.response.send_message("❌ أنت لم تسجل دخولك أصلاً!", ephemeral=True)
+            await interaction.response.send_message("❌ أنت غير مسجل دخول!", ephemeral=True)
             return
-            
+        
         start_time = active_shifts.pop(user_id)
-        duration_minutes = int((time.time() - start_time) / 60)
-        points_earned = int(duration_minutes / 10)
+        duration_minutes = int((time.time() - start_time) // 60)
+        points_earned = duration_minutes // 20
         
         data = load_data()
         new_points = data.get(user_id, 0) + points_earned
         data[user_id] = new_points
         save_data(data)
         
-        # رسالة خروج خاصة
-        await interaction.response.send_message(
-            f"🔴 **تم تسجيل خروجك.**\n⏱️ مدة الشفت: `{duration_minutes} دقيقة`\n✨ النقاط المكتسبة: `+{points_earned}`\n📊 إجمالي نقاطك: `{new_points}`", 
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"🔴 **تسجيل خروج**\n• العسكري: {interaction.user.mention}\n• المدة: {duration_minutes} دقيقة\n• النقاط المكتسبة: +{points_earned}\n• مجموع نقاطك: {new_points}", ephemeral=False)
+
+    @discord.ui.button(label="نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_points")
+    async def my_points(self, interaction: discord.Interaction, button: Button):
+        data = load_data()
+        pts = data.get(str(interaction.user.id), 0)
+        await interaction.response.send_message(f"👮‍♂️ نقاطك الحالية: **{pts}** نقطة.", ephemeral=True)
+
+    @discord.ui.button(label="ترتيب العساكر", style=discord.ButtonStyle.secondary, custom_id="leaderboard")
+    async def leaderboard(self, interaction: discord.Interaction, button: Button):
+        data = load_data()
+        if not data:
+            await interaction.response.send_message("لا توجد بيانات نقاط.", ephemeral=True)
+            return
+        sorted_data = sorted(data.items(), key=lambda item: item[1], reverse=True)[:10]
+        msg = "🏆 **أعلى 10 عساكر بالنقاط:**\n"
+        for i, (uid, pts) in enumerate(sorted_data):
+            msg += f"{i+1}. <@{uid}>: **{pts}** نقطة\n"
+        await interaction.response.send_message(msg, ephemeral=True)
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user.name}")
     bot.add_view(ShiftView())
 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def لوحة_الشفتات(ctx):
-    embed = discord.Embed(
-        title="🚨 لوحة تسجيل شفتات الشيرف",
-        description="اضغط على الأزرار بالأسفل لتسجيل حضورك وغيابك",
-        color=discord.Color.blue()
-    )
+    embed = discord.Embed(title="🚨 لوحة تسجيل شفتات الشيرف", description="استخدم الأزرار أدناه للتحكم بشفتك ونقاطك.", color=discord.Color.blue())
     await ctx.send(embed=embed, view=ShiftView())
 
-@bot.command()
-async def نقاطي(ctx):
-    data = load_data()
-    user_id = str(ctx.author.id)
-    user_points = data.get(user_id, 0)
-    await ctx.send(f"👮 | نقاطك المسجلة هي: {user_points}")
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def المباشرين(ctx):
-    if not active_shifts:
-        await ctx.send("❌ لا يوجد أي عسكري في الشفت حالياً.")
-        return
-        
-    msg = "👮 **العساكر المباشرين حالياً في الشفت:**\n"
-    for u_id, start_t in active_shifts.items():
-        dur = int((time.time() - start_t) / 60)
-        msg += f"• <@{u_id}> (مستمر منذ: `{dur} دقيقة`)\n"
-    await ctx.send(msg)
-
-keep_alive()
-bot.run(os.environ['DISCORD_TOKEN']) 
+bot.run("DISCORD_TOKEN") 
