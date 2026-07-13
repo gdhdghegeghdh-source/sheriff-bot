@@ -104,5 +104,6 @@ async def نقاطي(ctx):
     user_id = str(ctx.author.id)
     user_points = data.get(user_id, 0)
     await ctx.send(f"👮‍♂️ | حالياً نقاطك المسجلة هي: **{user_points}** نقطة.")
+
 keep_alive( )
 bot.run(os.environ['DISCORD_TOKEN'])
