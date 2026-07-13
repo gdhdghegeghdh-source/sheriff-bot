@@ -19,13 +19,14 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
-    
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 DATA_FILE = "sheriff_points.json"
+active_shifts = {}
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -37,63 +38,58 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# قاموس لتخزين وقت دخول العساكر (مؤقت في الذاكرة)
-active_shifts = {}
-
 class ShiftView(View):
     def __init__(self):
-        super().__init__(timeout=None) # عشان الأزرار ما تخرب وتخفي بعد فترة
+        super().__init__(timeout=None)
 
-    @discord.ui.button(label="Clock In (دخول)", style=discord.ButtonStyle.green, custom_id="clock_in")
-    async def clock_in(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="تسجيل دخول شفت", style=discord.ButtonStyle.green, custom_id="shift_start")
+    async def start_shift(self, interaction: discord.Interaction, button: Button):
         user_id = str(interaction.user.id)
-        if user_id in active_shifts:
-            await interaction.response.send_message("❌ أنت مسجل دخول بالفعل في الشفت!", ephemeral=True)
-            return
-        
         active_shifts[user_id] = time.time()
-        await interaction.response.send_message("🟢 تم تسجيل دخولك للشفت بنجاح. بالتوفيق يا وحش!", ephemeral=True)
+        
+        log_msg = f"🟢 **تسجيل دخول شفت**\n• العسكري: {interaction.user.mention}\n• الوقت: <t:{int(time.time())}:F>"
+        await interaction.channel.send(log_msg)
+        await interaction.response.send_message("تم تسجيل دخولك بنجاح!", ephemeral=True)
 
-    @discord.ui.button(label="Clock Out (خروج)", style=discord.ButtonStyle.red, custom_id="clock_out")
-    async def clock_out(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="تسجيل خروج شفت", style=discord.ButtonStyle.red, custom_id="shift_end")
+    async def end_shift(self, interaction: discord.Interaction, button: Button):
         user_id = str(interaction.user.id)
+        
         if user_id not in active_shifts:
-            await interaction.response.send_message("❌ أنت مش مسجل دخول عشان تطلع!", ephemeral=True)
+            await interaction.response.send_message("أنت لم تسجل دخولك بالشفت أصلاً!", ephemeral=True)
             return
-        
+            
         start_time = active_shifts.pop(user_id)
-        duration_seconds = time.time() - start_time
-        duration_minutes = int(duration_seconds // 60)
+        duration_minutes = int((time.time() - start_time) / 60)
         
-        # حساب النقاط: كل 20 دقيقة بنقطة
-        points_earned = duration_minutes // 20
+        points_earned = max(1, int(duration_minutes / 10)) 
         
-        # حفظ النقاط في الملف
         data = load_data()
         current_points = data.get(user_id, 0)
         new_points = current_points + points_earned
         data[user_id] = new_points
         save_data(data)
         
-        msg = f"🔴 **تسجيل خروج شفت**\n"
-        msg += f"• العسكري: {interaction.user.mention}\n"
-        msg += f"• مدة الشفت: `{duration_minutes}` دقيقة\n"
-        msg += f"• النقاط المكتسبة: `+{points_earned}` نقطة\n"
-        msg += f"• مجموع نقاطك الحالي: `{new_points}` نقطة."
+        log_msg = f"🔴 **تسجيل خروج شفت**\n"
+        log_msg += f"• العسكري: {interaction.user.mention}\n"
+        log_msg += f"• مدة الشفت: `{duration_minutes} دقيقة`\n"
+        log_msg += f"• النقاط المكتسبة: `+{points_earned}`\n"
+        log_msg += f"• مجموع نقاطك الحالي: `{new_points}`"
         
-        await interaction.response.send_message(msg, ephemeral=False)
+        await interaction.channel.send(log_msg)
+        await interaction.response.send_message("تم تسجيل خروجك وحساب نقاطك!", ephemeral=True)
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
-    bot.add_view(ShiftView()) # تفعيل الأزرار بشكل دائم
+    bot.add_view(ShiftView())
 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def لوحة_الشفتات(ctx):
     embed = discord.Embed(
         title="🚨 لوحة تسجيل شفتات الشيرف",
-        description="الرجاء الضغط على الزر الأخضر عند بدء الشفت، والزر الأحمر عند الانتهاء لحساب نقاطك تلقائياً.",
+        description="اضغط على الأزرار بالأسفل لتسجيل حضورك وغيابك",
         color=discord.Color.blue()
     )
     await ctx.send(embed=embed, view=ShiftView())
@@ -103,7 +99,20 @@ async def نقاطي(ctx):
     data = load_data()
     user_id = str(ctx.author.id)
     user_points = data.get(user_id, 0)
-    await ctx.send(f"👮‍♂️ | حالياً نقاطك المسجلة هي: **{user_points}** نقطة.")
+    await ctx.send(f"👮 | نقاطك المسجلة هي: {user_points}")
 
-keep_alive( )
-bot.run(os.environ['DISCORD_TOKEN'])
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def المباشرين(ctx):
+    if not active_shifts:
+        await ctx.send("❌ لا يوجد أي عسكري في الشفت حالياً.")
+        return
+        
+    msg = "👮 **العساكر المباشرين حالياً في الشفت:**\n"
+    for u_id, start_t in active_shifts.items():
+        dur = int((time.time() - start_t) / 60)
+        msg += f"• <@{u_id}> (مستمر منذ: `{dur} دقيقة`)\n"
+    await ctx.send(msg)
+
+keep_alive()
+bot.run(os.environ['DISCORD_TOKEN']
