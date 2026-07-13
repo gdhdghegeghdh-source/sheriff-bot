@@ -36,7 +36,7 @@ class ShiftView(View):
             await interaction.response.send_message("❌ أنت مسجل دخول بالفعل!", ephemeral=True)
             return
         active_shifts[user_id] = time.time()
-        await interaction.response.send_message("🟢 تم تسجيل الدخول.", ephemeral=True)
+        await interaction.response.send_message("🟢 تم تسجيل دخولك بنجاح.", ephemeral=True)
 
     @discord.ui.button(label="تسجيل خروج", style=discord.ButtonStyle.red, custom_id="clock_out")
     async def clock_out(self, interaction: discord.Interaction, button: Button):
@@ -54,7 +54,8 @@ class ShiftView(View):
         data[user_id] = new_points
         save_data(data)
         
-        await interaction.response.send_message(f"🔴 **تسجيل خروج**\n• العسكري: {interaction.user.mention}\n• المدة: {duration_minutes} دقيقة\n• النقاط المكتسبة: +{points_earned}\n• المجموع الكلي: {new_points}", ephemeral=False)
+        # هنا تم التعديل لتكون الرسالة خاصة (ephemeral=True)
+        await interaction.response.send_message(f"🔴 **تسجيل خروج**\n• المدة: {duration_minutes} دقيقة\n• النقاط المكتسبة: +{points_earned}\n• المجموع الكلي: {new_points}", ephemeral=True)
 
     @discord.ui.button(label="نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_points")
     async def my_points(self, interaction: discord.Interaction, button: Button):
@@ -66,7 +67,7 @@ class ShiftView(View):
     async def leaderboard(self, interaction: discord.Interaction, button: Button):
         data = load_data()
         if not data:
-            await interaction.response.send_message("لا توجد بيانات نقاط حالياً.", ephemeral=True)
+            await interaction.response.send_message("لا توجد بيانات نقاط.", ephemeral=True)
             return
         sorted_data = sorted(data.items(), key=lambda item: item[1], reverse=True)[:10]
         msg = "🏆 **أعلى 10 عساكر بالنقاط:**\n"
@@ -90,7 +91,7 @@ async def تعديل_نقاط(ctx, member: discord.Member, amount: int):
     data = load_data()
     data[str(member.id)] = data.get(str(member.id), 0) + amount
     save_data(data)
-    await ctx.send(f"✅ تم تعديل نقاط {member.mention}، المجموع الجديد: {data[str(member.id)]} نقطة.")
+    await ctx.send(f"✅ تم تعديل نقاط {member.mention} بنجاح.")
 
 bot.run(os.environ['DISCORD_TOKEN'])
  
