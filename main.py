@@ -115,4 +115,5 @@ async def المباشرين(ctx):
     await ctx.send(msg)
 
 keep_alive()
-bot.run(os.environ['DISCORD_TOKEN']
+bot.run(os.environ['DISCORD_TOKEN'])
+
