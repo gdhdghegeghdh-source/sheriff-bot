@@ -45,39 +45,46 @@ class ShiftView(View):
     @discord.ui.button(label="تسجيل دخول شفت", style=discord.ButtonStyle.green, custom_id="shift_start")
     async def start_shift(self, interaction: discord.Interaction, button: Button):
         user_id = str(interaction.user.id)
+        
+        # منع تسجيل الدخول المتكرر
+        if user_id in active_shifts:
+            await interaction.response.send_message("❌ أنت مسجل دخول بالفعل في شفت حالي!", ephemeral=True)
+            return
+        
         active_shifts[user_id] = time.time()
         
-        log_msg = f"🟢 **تسجيل دخول شفت**\n• العسكري: {interaction.user.mention}\n• الوقت: <t:{int(time.time())}:F>"
-        await interaction.channel.send(log_msg)
-        await interaction.response.send_message("تم تسجيل دخولك بنجاح!", ephemeral=True)
+        # جلب النقاط الحالية
+        data = load_data()
+        current_points = data.get(user_id, 0)
+        
+        await interaction.response.send_message(
+            f"✅ **تم تسجيل دخولك بنجاح!**\n📊 نقاطك الحالية: `{current_points}`", 
+            ephemeral=True
+        )
 
     @discord.ui.button(label="تسجيل خروج شفت", style=discord.ButtonStyle.red, custom_id="shift_end")
     async def end_shift(self, interaction: discord.Interaction, button: Button):
         user_id = str(interaction.user.id)
         
+        # التأكد أن العسكري مسجل دخول
         if user_id not in active_shifts:
-            await interaction.response.send_message("أنت لم تسجل دخولك بالشفت أصلاً!", ephemeral=True)
+            await interaction.response.send_message("❌ أنت لم تسجل دخولك أصلاً!", ephemeral=True)
             return
             
         start_time = active_shifts.pop(user_id)
         duration_minutes = int((time.time() - start_time) / 60)
-        
-        points_earned = int(duration_minutes / 10) 
+        points_earned = int(duration_minutes / 10)
         
         data = load_data()
-        current_points = data.get(user_id, 0)
-        new_points = current_points + points_earned
+        new_points = data.get(user_id, 0) + points_earned
         data[user_id] = new_points
         save_data(data)
         
-        log_msg = f"🔴 **تسجيل خروج شفت**\n"
-        log_msg += f"• العسكري: {interaction.user.mention}\n"
-        log_msg += f"• مدة الشفت: `{duration_minutes} دقيقة`\n"
-        log_msg += f"• النقاط المكتسبة: `+{points_earned}`\n"
-        log_msg += f"• مجموع نقاطك الحالي: `{new_points}`"
-        
-        await interaction.channel.send(log_msg)
-        await interaction.response.send_message("تم تسجيل خروجك وحساب نقاطك!", ephemeral=True)
+        # رسالة خروج خاصة
+        await interaction.response.send_message(
+            f"🔴 **تم تسجيل خروجك.**\n⏱️ مدة الشفت: `{duration_minutes} دقيقة`\n✨ النقاط المكتسبة: `+{points_earned}`\n📊 إجمالي نقاطك: `{new_points}`", 
+            ephemeral=True
+        )
 
 @bot.event
 async def on_ready():
