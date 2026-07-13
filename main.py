@@ -4,7 +4,22 @@ from discord.ui import Button, View
 import time
 import json
 import os
+from flask import Flask
+from threading import Thread
 
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "I am alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+    
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -89,5 +104,5 @@ async def نقاطي(ctx):
     user_id = str(ctx.author.id)
     user_points = data.get(user_id, 0)
     await ctx.send(f"👮‍♂️ | حالياً نقاطك المسجلة هي: **{user_points}** نقطة.")
-
+keep_alive( )
 bot.run(os.environ['DISCORD_TOKEN'])
