@@ -54,7 +54,6 @@ class ShiftView(View):
         data[user_id] = new_points
         save_data(data)
         
-        # هنا تم التعديل لتكون الرسالة خاصة (ephemeral=True)
         await interaction.response.send_message(f"🔴 **تسجيل خروج**\n• المدة: {duration_minutes} دقيقة\n• النقاط المكتسبة: +{points_earned}\n• المجموع الكلي: {new_points}", ephemeral=True)
 
     @discord.ui.button(label="نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_points")
@@ -93,4 +92,5 @@ async def تعديل_نقاط(ctx, member: discord.Member, amount: int):
     save_data(data)
     await ctx.send(f"✅ تم تعديل نقاط {member.mention} بنجاح.")
 
-bot.run(os.environ['DISCORD_TOKEN'])
+bot.run(os.environ.get('DISCORD_TOKEN'))
+
