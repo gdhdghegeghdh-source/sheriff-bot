@@ -41,7 +41,7 @@ class ShiftView(View):
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
         if not start: return await interaction.response.send_message("❌ لم تسجل دخولك!", ephemeral=True)
-        pts = int((time.time() - start) // 600)
+        pts = int((time.time() - start) // 600) # 10 دقائق = نقطة
         data = load_data()
         data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + pts
         save_data(data)
@@ -89,19 +89,23 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
     name = TextInput(label="اسم المجرم")
     charges = TextInput(label="التهم", style=discord.TextStyle.paragraph)
     duration = TextInput(label="مدة الاحتجاز")
+    fine = TextInput(label="الغرامة المالية")
     weapons = TextInput(label="الأسلحة الممنوعة", style=discord.TextStyle.paragraph)
     img_url = TextInput(label="رابط الصورة")
     async def on_submit(self, interaction):
         data = load_data()
-        data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + 10
+        user_id = str(interaction.user.id)
+        data[user_id] = data.get(user_id, 0) + 10 # إضافة 10 نقاط للضبط
         save_data(data)
         embed = discord.Embed(title="🚨 بلاغ ضبط مجرم", color=discord.Color.red())
+        embed.add_field(name="العسكري", value=interaction.user.mention, inline=False)
         embed.add_field(name="الاسم", value=self.name.value, inline=False)
         embed.add_field(name="التهم", value=self.charges.value, inline=False)
         embed.add_field(name="مدة الاحتجاز", value=self.duration.value, inline=True)
-        embed.add_field(name="الأسلحة الممنوعة", value=self.weapons.value, inline=True)
+        embed.add_field(name="الغرامة المالية", value=self.fine.value, inline=True)
+        embed.add_field(name="الأسلحة الممنوعة", value=self.weapons.value, inline=False)
         embed.set_image(url=self.img_url.value)
-        send_log(interaction, "ضبط مجرم", f"العسكري: {interaction.user.mention}\nالمجرم: {self.name.value}")
+        send_log(interaction, "ضبط مجرم", f"العسكري: {interaction.user.mention} (+10 نقاط)\nالمجرم: {self.name.value}")
         await interaction.response.send_message(embed=embed)
 
 class CriminalView(View):
@@ -148,4 +152,4 @@ async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=Criminal
 async def setup_dispatch(ctx): await ctx.send("لوحة الدسباتش:", view=DispatchView())
 
 bot.run(os.environ.get('DISCORD_TOKEN'))
- 
+
