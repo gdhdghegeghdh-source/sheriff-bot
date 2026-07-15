@@ -31,13 +31,13 @@ def send_log(interaction, title, description):
 
 class ShiftView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="تسجيل دخول", style=discord.ButtonStyle.green, custom_id="clock_in")
+    @discord.ui.button(label="تسجيل دخول", style=discord.ButtonStyle.green, custom_id="shift_clock_in")
     async def clock_in(self, interaction, button):
         active_shifts[str(interaction.user.id)] = time.time()
         await interaction.response.send_message("🟢 تم تسجيل دخولك.", ephemeral=True)
         send_log(interaction, "تسجيل دخول شفت", "تم تسجيل دخول العسكري للشفت.")
 
-    @discord.ui.button(label="تسجيل خروج", style=discord.ButtonStyle.red, custom_id="clock_out")
+    @discord.ui.button(label="تسجيل خروج", style=discord.ButtonStyle.red, custom_id="shift_clock_out")
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
         if not start: return await interaction.response.send_message("❌ غير مسجل دخول!", ephemeral=True)
@@ -64,7 +64,7 @@ class AdminModal(Modal, title="إدارة النقاط"):
 
 class AdminControlView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage")
     async def manage(self, interaction, button): await interaction.response.send_modal(AdminModal())
 
 class CriminalModal(Modal, title="سجل ضبط مجرم"):
@@ -83,7 +83,7 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
 
 class CriminalView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest")
     async def arrest(self, interaction, button): await interaction.response.send_modal(CriminalModal())
 
 class DispatchModal(Modal, title="تحديث الدسباتش"):
@@ -94,7 +94,7 @@ class DispatchModal(Modal, title="تحديث الدسباتش"):
 
 class DispatchView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="📡 تحديث الدسباتش", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="📡 تحديث الدسباتش", style=discord.ButtonStyle.secondary, custom_id="dispatch_update")
     async def update(self, interaction, button): await interaction.response.send_modal(DispatchModal())
 
 @bot.event
@@ -114,4 +114,4 @@ async def setup(ctx):
 
 active_shifts = {}
 bot.run(os.environ.get('DISCORD_TOKEN'))
-
+ 
