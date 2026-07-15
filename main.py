@@ -84,7 +84,7 @@ class AdminControlView(View):
     @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage")
     async def manage(self, interaction, button): await interaction.response.send_modal(AdminModal())
 
-# --- 3. لوحة القبض ---
+# --- 3. لوحة القبض (المحدثة جذرياً) ---
 class CriminalModal(Modal, title="سجل ضبط مجرم"):
     name = TextInput(label="اسم المجرم")
     id_num = TextInput(label="هوية المجرم")
@@ -112,9 +112,9 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
         send_log(interaction, "ضبط مجرم", f"العسكري: {interaction.user.mention} (+10 نقاط)\nالمجرم: {self.name.value}")
         await interaction.response.send_message(embed=embed)
 
-class CriminalView(View):
+class CriminalViewV2(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest_v2")
+    @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest_final")
     async def arrest(self, interaction, button): await interaction.response.send_modal(CriminalModal())
 
 # --- 4. لوحة الدسباتش ---
@@ -138,7 +138,7 @@ class DispatchView(View):
 async def on_ready():
     bot.add_view(ShiftView())
     bot.add_view(AdminControlView())
-    bot.add_view(CriminalView())
+    bot.add_view(CriminalViewV2())
     bot.add_view(DispatchView())
     print("البوت يعمل!")
 
@@ -150,7 +150,7 @@ async def setup_shifts(ctx): await ctx.send("لوحة الشفتات:", view=Shi
 async def setup_admin(ctx): await ctx.send("لوحة القادة:", view=AdminControlView())
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=CriminalView())
+async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=CriminalViewV2())
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_dispatch(ctx): await ctx.send("لوحة الدسباتش:", view=DispatchView())
