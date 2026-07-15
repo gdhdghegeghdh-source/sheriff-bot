@@ -114,4 +114,4 @@ async def setup(ctx):
 
 active_shifts = {}
 bot.run(os.environ.get('DISCORD_TOKEN'))
- 
+  
