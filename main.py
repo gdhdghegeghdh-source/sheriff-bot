@@ -114,7 +114,7 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
 
 class CriminalView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest")
+    @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest_v2")
     async def arrest(self, interaction, button): await interaction.response.send_modal(CriminalModal())
 
 # --- 4. لوحة الدسباتش ---
