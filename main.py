@@ -22,7 +22,7 @@ def load_data():
 def save_data(data):
     with open(DATA_FILE, "w") as f: json.dump(data, f, indent=4)
 
-# 1. لوحة الشفتات (دخول، خروج، نقاطي، توب 10)
+# --- 1. لوحة الشفتات ---
 class ShiftView(View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="تسجيل دخول", style=discord.ButtonStyle.green, custom_id="shift_in")
@@ -56,41 +56,49 @@ class ShiftView(View):
             msg += f"• {name} : {pts}\n"
         await interaction.response.send_message(msg, ephemeral=True)
 
-# 2. لوحة إدارة النقاط (إضافة/خصم)
+# --- 2. لوحة إدارة النقاط ---
 class AdminModal(Modal, title="إدارة النقاط"):
     m_id = TextInput(label="آيدي العسكري")
-    amt = TextInput(label="العدد")
     act = TextInput(label="العملية (خصم/إضافة/تصفير)")
+    reason = TextInput(label="السبب", style=discord.TextStyle.paragraph)
     async def on_submit(self, interaction):
         data = load_data()
-        mid, amt = str(self.m_id.value), int(self.amt.value or 0)
-        if self.act.value == "خصم": data[mid] = max(0, data.get(mid, 0) - amt)
-        elif self.act.value == "إضافة": data[mid] = data.get(mid, 0) + amt
-        else: data[mid] = 0
+        mid = str(self.m_id.value)
+        if self.act.value == "تصفير": data[mid] = 0
+        else: data[mid] = data.get(mid, 0) + (1 if self.act.value == "إضافة" else -1)
         save_data(data)
-        await interaction.response.send_message("✅ تمت العملية.", ephemeral=True)
+        await interaction.response.send_message(f"**⚙️ تحديث نقاط:**\n- العسكري: <@{mid}>\n- العملية: {self.act.value}\n- السبب: {self.reason.value}")
 
 class AdminControlView(View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage")
     async def manage(self, interaction, button): await interaction.response.send_modal(AdminModal())
 
-# 3. لوحة ضبط المجرم
+# --- 3. لوحة القبض ---
 class CriminalModal(Modal, title="سجل ضبط مجرم"):
-    name = TextInput(label="الاسم")
-    charges = TextInput(label="التهم")
+    name = TextInput(label="اسم المجرم")
+    charges = TextInput(label="التهم", style=discord.TextStyle.paragraph)
+    duration = TextInput(label="مدة الاحتجاز")
+    weapons = TextInput(label="الأسلحة الممنوعة", style=discord.TextStyle.paragraph)
+    img_url = TextInput(label="رابط الصورة")
     async def on_submit(self, interaction):
         data = load_data()
         data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + 10
         save_data(data)
-        await interaction.response.send_message(f"🚨 تم ضبط: {self.name.value}\nالمكافأة: +10 نقاط")
+        embed = discord.Embed(title="🚨 بلاغ ضبط مجرم", color=discord.Color.red())
+        embed.add_field(name="الاسم", value=self.name.value, inline=False)
+        embed.add_field(name="التهم", value=self.charges.value, inline=False)
+        embed.add_field(name="مدة الاحتجاز", value=self.duration.value, inline=True)
+        embed.add_field(name="الأسلحة الممنوعة", value=self.weapons.value, inline=True)
+        embed.set_image(url=self.img_url.value)
+        await interaction.response.send_message(embed=embed)
 
 class CriminalView(View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest")
     async def arrest(self, interaction, button): await interaction.response.send_modal(CriminalModal())
 
-# 4. لوحة الدسباتش
+# --- 4. لوحة الدسباتش ---
 class DispatchModal(Modal, title="تحديث الدسباتش"):
     d1 = TextInput(label="منشن الدسباتش")
     d2 = TextInput(label="منشن مساعد الدسباتش")
@@ -112,15 +120,20 @@ async def on_ready():
     bot.add_view(AdminControlView())
     bot.add_view(CriminalView())
     bot.add_view(DispatchView())
-    print("البوت جاهز!")
+    print("البوت يعمل!")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def setup(ctx):
-    await ctx.send("لوحة الشفتات:", view=ShiftView())
-    await ctx.send("لوحة القادة:", view=AdminControlView())
-    await ctx.send("لوحة القبض:", view=CriminalView())
-    await ctx.send("لوحة الدسباتش:", view=DispatchView())
+async def setup_shifts(ctx): await ctx.send("لوحة الشفتات:", view=ShiftView())
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_admin(ctx): await ctx.send("لوحة القادة:", view=AdminControlView())
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=CriminalView())
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_dispatch(ctx): await ctx.send("لوحة الدسباتش:", view=DispatchView())
 
 bot.run(os.environ.get('DISCORD_TOKEN'))
 
