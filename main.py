@@ -22,6 +22,13 @@ def load_data():
 def save_data(data):
     with open(DATA_FILE, "w") as f: json.dump(data, f, indent=4)
 
+def send_log(interaction, title, description):
+    channel = bot.get_channel(LOG_CHANNEL_ID)
+    if channel:
+        embed = discord.Embed(title=f"📝 {title}", description=description, color=discord.Color.blue())
+        embed.set_footer(text=f"بواسطة: {interaction.user.display_name}")
+        bot.loop.create_task(channel.send(embed=embed))
+
 # --- 1. لوحة الشفتات ---
 class ShiftView(View):
     def __init__(self): super().__init__(timeout=None)
@@ -38,6 +45,7 @@ class ShiftView(View):
         data = load_data()
         data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + pts
         save_data(data)
+        send_log(interaction, "تسجيل خروج شفت", f"العسكري: {interaction.user.mention}\nالنقاط المكتسبة: {pts}")
         await interaction.response.send_message(f"🔴 تم الخروج. النقاط: {pts}", ephemeral=True)
 
     @discord.ui.button(label="نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts")
@@ -67,7 +75,9 @@ class AdminModal(Modal, title="إدارة النقاط"):
         if self.act.value == "تصفير": data[mid] = 0
         else: data[mid] = data.get(mid, 0) + (1 if self.act.value == "إضافة" else -1)
         save_data(data)
-        await interaction.response.send_message(f"**⚙️ تحديث نقاط:**\n- العسكري: <@{mid}>\n- العملية: {self.act.value}\n- السبب: {self.reason.value}")
+        msg = f"**⚙️ تحديث نقاط:**\n- العسكري: <@{mid}>\n- العملية: {self.act.value}\n- السبب: {self.reason.value}"
+        send_log(interaction, "إدارة نقاط", msg)
+        await interaction.response.send_message(msg)
 
 class AdminControlView(View):
     def __init__(self): super().__init__(timeout=None)
@@ -91,6 +101,7 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
         embed.add_field(name="مدة الاحتجاز", value=self.duration.value, inline=True)
         embed.add_field(name="الأسلحة الممنوعة", value=self.weapons.value, inline=True)
         embed.set_image(url=self.img_url.value)
+        send_log(interaction, "ضبط مجرم", f"العسكري: {interaction.user.mention}\nالمجرم: {self.name.value}")
         await interaction.response.send_message(embed=embed)
 
 class CriminalView(View):
@@ -107,6 +118,7 @@ class DispatchModal(Modal, title="تحديث الدسباتش"):
     v1 = TextInput(label="عدد المركبات")
     async def on_submit(self, interaction):
         msg = f"**```Dispatch```**\n﹣مـنـشـن الـدسبـاتـش : - {self.d1.value}\n﹣مُسـاعـد الـدسبـاتـش : - {self.d2.value}\n﹣عدد الـعساكـر الـمـتواجديـن : - {self.p1.value}\n﹣عدد الـعساكـر الـغـير مـتواجديـن: - {self.p2.value}\n﹣عدد المركبات في الميدان : - {self.v1.value}\n﹣مسؤول الفترة : - {interaction.user.mention}\n<@&1526289142466609152>"
+        send_log(interaction, "تحديث دسباتش", f"تم تحديث الدسباتش بواسطة {interaction.user.mention}")
         await interaction.response.send_message(msg)
 
 class DispatchView(View):
@@ -136,4 +148,4 @@ async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=Criminal
 async def setup_dispatch(ctx): await ctx.send("لوحة الدسباتش:", view=DispatchView())
 
 bot.run(os.environ.get('DISCORD_TOKEN'))
-
+ 
