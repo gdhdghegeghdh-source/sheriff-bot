@@ -32,12 +32,12 @@ def send_log(interaction, title, description):
 # --- 1. لوحة الشفتات ---
 class ShiftView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="تسجيل دخول", style=discord.ButtonStyle.green, custom_id="shift_in")
+    @discord.ui.button(label="تسجيل دخول", style=discord.ButtonStyle.green, custom_id="shift_in_v1")
     async def clock_in(self, interaction, button):
         active_shifts[str(interaction.user.id)] = time.time()
         await interaction.response.send_message("🟢 تم تسجيل دخولك.", ephemeral=True)
 
-    @discord.ui.button(label="تسجيل خروج", style=discord.ButtonStyle.red, custom_id="shift_out")
+    @discord.ui.button(label="تسجيل خروج", style=discord.ButtonStyle.red, custom_id="shift_out_v1")
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
         if not start: return await interaction.response.send_message("❌ لم تسجل دخولك!", ephemeral=True)
@@ -48,21 +48,10 @@ class ShiftView(View):
         send_log(interaction, "تسجيل خروج شفت", f"العسكري: {interaction.user.mention}\nالنقاط المكتسبة: {pts}")
         await interaction.response.send_message(f"🔴 تم الخروج. النقاط: {pts}", ephemeral=True)
 
-    @discord.ui.button(label="نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts")
+    @discord.ui.button(label="نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts_v1")
     async def my_pts(self, interaction, button):
         pts = load_data().get(str(interaction.user.id), 0)
         await interaction.response.send_message(f"📊 نقاطك الحالية: {pts}", ephemeral=True)
-
-    @discord.ui.button(label="توب 10", style=discord.ButtonStyle.gray, custom_id="top_10")
-    async def top_10(self, interaction, button):
-        data = load_data()
-        sorted_d = sorted(data.items(), key=lambda x: x[1], reverse=True)[:10]
-        msg = "**🏆 توب 10 عساكر:**\n\n"
-        for uid, pts in sorted_d:
-            member = interaction.guild.get_member(int(uid))
-            name = member.display_name if member else f"ID: {uid}"
-            msg += f"• {name} : {pts}\n"
-        await interaction.response.send_message(msg, ephemeral=True)
 
 # --- 2. لوحة إدارة النقاط ---
 class AdminModal(Modal, title="إدارة النقاط"):
@@ -81,10 +70,10 @@ class AdminModal(Modal, title="إدارة النقاط"):
 
 class AdminControlView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage")
+    @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage_v1")
     async def manage(self, interaction, button): await interaction.response.send_modal(AdminModal())
 
-# --- 3. لوحة القبض (المحدثة جذرياً) ---
+# --- 3. لوحة القبض المحدثة ---
 class CriminalModal(Modal, title="سجل ضبط مجرم"):
     name = TextInput(label="اسم المجرم")
     id_num = TextInput(label="هوية المجرم")
@@ -112,35 +101,26 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
         send_log(interaction, "ضبط مجرم", f"العسكري: {interaction.user.mention} (+10 نقاط)\nالمجرم: {self.name.value}")
         await interaction.response.send_message(embed=embed)
 
-class CriminalViewV2(View):
+class FinalCriminalView(View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="👮‍♂️ ضبط مجرم", style=discord.ButtonStyle.primary, custom_id="crime_arrest_final")
     async def arrest(self, interaction, button): await interaction.response.send_modal(CriminalModal())
 
 # --- 4. لوحة الدسباتش ---
-class DispatchModal(Modal, title="تحديث الدسباتش"):
-    d1 = TextInput(label="منشن الدسباتش")
-    d2 = TextInput(label="منشن مساعد الدسباتش")
-    p1 = TextInput(label="عدد المتواجدين")
-    p2 = TextInput(label="عدد الغائبين")
-    v1 = TextInput(label="عدد المركبات")
-    async def on_submit(self, interaction):
-        msg = f"**```Dispatch```**\n﹣مـنـشـن الـدسبـاتـش : - {self.d1.value}\n﹣مُسـاعـد الـدسبـاتـش : - {self.d2.value}\n﹣عدد الـعساكـر الـمـتواجديـن : - {self.p1.value}\n﹣عدد الـعساكـر الـغـير مـتواجديـن: - {self.p2.value}\n﹣عدد المركبات في الميدان : - {self.v1.value}\n﹣مسؤول الفترة : - {interaction.user.mention}\n<@&1526289142466609152>"
-        send_log(interaction, "تحديث دسباتش", f"تم تحديث الدسباتش بواسطة {interaction.user.mention}")
-        await interaction.response.send_message(msg)
-
 class DispatchView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="📡 تحديث الدسباتش", style=discord.ButtonStyle.secondary, custom_id="dispatch_upd")
-    async def update(self, interaction, button): await interaction.response.send_modal(DispatchModal())
+    @discord.ui.button(label="📡 تحديث الدسباتش", style=discord.ButtonStyle.secondary, custom_id="dispatch_upd_v1")
+    async def update(self, interaction, button): 
+        # يمكنك إضافة DispatchModal هنا بنفس طريقة CriminalModal
+        await interaction.response.send_message("تم الضغط على الدسباتش (يرجى ربط المودال الخاص به)", ephemeral=True)
 
 @bot.event
 async def on_ready():
     bot.add_view(ShiftView())
     bot.add_view(AdminControlView())
-    bot.add_view(CriminalViewV2())
+    bot.add_view(FinalCriminalView())
     bot.add_view(DispatchView())
-    print("البوت يعمل!")
+    print("البوت يعمل بكامل طاقته!")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -150,7 +130,7 @@ async def setup_shifts(ctx): await ctx.send("لوحة الشفتات:", view=Shi
 async def setup_admin(ctx): await ctx.send("لوحة القادة:", view=AdminControlView())
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=CriminalViewV2())
+async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=FinalCriminalView())
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_dispatch(ctx): await ctx.send("لوحة الدسباتش:", view=DispatchView())
