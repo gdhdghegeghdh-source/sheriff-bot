@@ -41,7 +41,7 @@ class ShiftView(View):
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
         if not start: return await interaction.response.send_message("❌ لم تسجل دخولك!", ephemeral=True)
-        pts = int((time.time() - start) // 600) # 10 دقائق = نقطة
+        pts = int((time.time() - start) // 600)
         data = load_data()
         data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + pts
         save_data(data)
@@ -87,6 +87,8 @@ class AdminControlView(View):
 # --- 3. لوحة القبض ---
 class CriminalModal(Modal, title="سجل ضبط مجرم"):
     name = TextInput(label="اسم المجرم")
+    id_num = TextInput(label="هوية المجرم")
+    criminal_record = TextInput(label="السجل الجنائي", style=discord.TextStyle.paragraph)
     charges = TextInput(label="التهم", style=discord.TextStyle.paragraph)
     duration = TextInput(label="مدة الاحتجاز")
     fine = TextInput(label="الغرامة المالية")
@@ -95,11 +97,13 @@ class CriminalModal(Modal, title="سجل ضبط مجرم"):
     async def on_submit(self, interaction):
         data = load_data()
         user_id = str(interaction.user.id)
-        data[user_id] = data.get(user_id, 0) + 10 # إضافة 10 نقاط للضبط
+        data[user_id] = data.get(user_id, 0) + 10
         save_data(data)
         embed = discord.Embed(title="🚨 بلاغ ضبط مجرم", color=discord.Color.red())
         embed.add_field(name="العسكري", value=interaction.user.mention, inline=False)
-        embed.add_field(name="الاسم", value=self.name.value, inline=False)
+        embed.add_field(name="اسم المجرم", value=self.name.value, inline=True)
+        embed.add_field(name="هوية المجرم", value=self.id_num.value, inline=True)
+        embed.add_field(name="السجل الجنائي", value=self.criminal_record.value, inline=False)
         embed.add_field(name="التهم", value=self.charges.value, inline=False)
         embed.add_field(name="مدة الاحتجاز", value=self.duration.value, inline=True)
         embed.add_field(name="الغرامة المالية", value=self.fine.value, inline=True)
