@@ -35,74 +35,66 @@ def send_log(interaction, title, description):
 
 class ShiftView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="🟢 دخول الشفت", style=discord.ButtonStyle.green, custom_id="shift_in_v4")
+    
+    @discord.ui.button(label="🟢 دخول الشفت", style=discord.ButtonStyle.green, custom_id="shift_in_final")
     async def clock_in(self, interaction, button):
         active_shifts[str(interaction.user.id)] = time.time()
-        await interaction.response.send_message("🟢 تم تسجيل دخولك.", ephemeral=True)
+        await interaction.response.edit_message(content="🟢 تم تسجيل دخولك.", embed=None)
 
-    @discord.ui.button(label="🔴 خروج الشفت", style=discord.ButtonStyle.red, custom_id="shift_out_v4")
+    @discord.ui.button(label="🔴 خروج الشفت", style=discord.ButtonStyle.red, custom_id="shift_out_final")
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
-        if not start: return await interaction.response.send_message("❌ لم تسجل دخولك!", ephemeral=True)
+        if not start: return await interaction.response.edit_message(content="❌ لم تسجل دخولك!", embed=None)
         pts = int((time.time() - start) // 600)
         data = load_data()
-        uid = str(interaction.user.id)
-        data[uid] = data.get(uid, 0) + pts
+        data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + pts
         save_data(data)
-        send_log(interaction, "شفت عسكري", f"العسكري: {interaction.user.mention}\nالنقاط المكتسبة: {pts}")
-        await interaction.response.send_message(f"🔴 تم الخروج. النقاط: {pts}", ephemeral=True)
+        await interaction.response.edit_message(content=f"🔴 تم الخروج. النقاط المكتسبة: {pts}", embed=None)
 
-    @discord.ui.button(label="📊 استعلام نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts_v4")
+    @discord.ui.button(label="📊 نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts_final")
     async def my_pts(self, interaction, button):
-        data = load_data()
-        pts = data.get(str(interaction.user.id), 0)
-        await interaction.response.send_message(f"📊 نقاطك الحالية: {pts}", ephemeral=True)
+        pts = load_data().get(str(interaction.user.id), 0)
+        embed = discord.Embed(title="📊 استعلام النقاط", description=f"نقاطك الحالية هي: {pts}", color=discord.Color.gold())
+        await interaction.response.edit_message(content="", embed=embed)
 
 class AdminModal(Modal, title="إدارة النقاط"):
     m_id = TextInput(label="آيدي العسكري")
     act = TextInput(label="العملية (خصم/إضافة/تصفير)")
-    reason = TextInput(label="السبب")
+    reason = TextInput(label="الكمية أو السبب")
     
     async def on_submit(self, interaction):
-        data = load_data()
         mid = get_clean_id(self.m_id.value)
+        data = load_data()
+        val = int(self.reason.value) if self.reason.value.isdigit() else 1
+        
         if self.act.value == "تصفير": data[mid] = 0
-        elif self.act.value == "إضافة": data[mid] = data.get(mid, 0) + 1
-        elif self.act.value == "خصم": data[mid] = data.get(mid, 0) - 1
+        elif self.act.value == "إضافة": data[mid] = data.get(mid, 0) + val
+        elif self.act.value == "خصم": data[mid] = data.get(mid, 0) - val
+        
         save_data(data)
         await interaction.response.send_message(f"✅ تم تحديث نقاط <@{mid}>", ephemeral=True)
-        send_log(interaction, "إدارة نقاط", f"العسكري: <@{mid}>\nالعملية: {self.act.value}\nالسبب: {self.reason.value}")
+        send_log(interaction, "إدارة نقاط", f"العسكري: <@{mid}>\nالعملية: {self.act.value}\nالقيمة: {val}")
 
 class AdminControlView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage_v4")
+    @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage_final")
     async def manage(self, interaction, button): await interaction.response.send_modal(AdminModal())
 
-class CriminalModal(Modal, title="سجل القبض على المجرم"):
+class CriminalModal(Modal, title="سجل القبض"):
     name = TextInput(label="اسم المجرم")
-    id_num = TextInput(label="هوية المجرم")
-    charges = TextInput(label="التهم")
     duration = TextInput(label="مدة السجن (بالدقائق)")
-    
     async def on_submit(self, interaction):
-        try:
-            dur = int(self.duration.value)
-            if 1 <= dur <= 40: pts = 6
-            elif 41 <= dur <= 80: pts = 10
-            elif 81 <= dur <= 180: pts = 12
-            elif 181 <= dur <= 280: pts = 15
-            else: pts = 5
-        except: pts = 5
+        dur = int(self.duration.value)
+        pts = 6 if dur <= 40 else 10 if dur <= 80 else 12 if dur <= 180 else 15
         data = load_data()
         uid = str(interaction.user.id)
         data[uid] = data.get(uid, 0) + pts
         save_data(data)
-        await interaction.response.send_message(f"✅ تم تسجيل القبض! أضيفت لك {pts} نقطة.", ephemeral=True)
-        send_log(interaction, "عملية قبض", f"العسكري: {interaction.user.mention}\nالمجرم: {self.name.value}\nالنقاط: {pts}")
+        await interaction.response.send_message(f"✅ تم القبض! أضيفت لك {pts} نقطة.", ephemeral=True)
 
 class FinalCriminalView(View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="👮‍♂️ القبض على المجرم", style=discord.ButtonStyle.primary, custom_id="arrest_criminal_v5")
+    @discord.ui.button(label="👮‍♂️ القبض على المجرم", style=discord.ButtonStyle.primary, custom_id="arrest_final")
     async def arrest(self, interaction, button): await interaction.response.send_modal(CriminalModal())
 
 @bot.event
@@ -122,4 +114,4 @@ async def setup_admin(ctx): await ctx.send("لوحة القادة:", view=AdminC
 async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=FinalCriminalView())
 
 bot.run(os.environ.get('DISCORD_TOKEN'))
- 
+
