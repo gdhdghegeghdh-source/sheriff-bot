@@ -39,23 +39,30 @@ class ShiftView(View):
     @discord.ui.button(label="🟢 دخول الشفت", style=discord.ButtonStyle.green, custom_id="shift_in_final")
     async def clock_in(self, interaction, button):
         active_shifts[str(interaction.user.id)] = time.time()
-        await interaction.response.edit_message(content="🟢 تم تسجيل دخولك.", embed=None)
+        await interaction.response.send_message("🟢 تم تسجيل دخولك.", ephemeral=True)
 
     @discord.ui.button(label="🔴 خروج الشفت", style=discord.ButtonStyle.red, custom_id="shift_out_final")
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
-        if not start: return await interaction.response.edit_message(content="❌ لم تسجل دخولك!", embed=None)
+        if not start: return await interaction.response.send_message("❌ لم تسجل دخولك!", ephemeral=True)
         pts = int((time.time() - start) // 600)
         data = load_data()
         data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + pts
         save_data(data)
-        await interaction.response.edit_message(content=f"🔴 تم الخروج. النقاط المكتسبة: {pts}", embed=None)
+        await interaction.response.send_message(f"🔴 تم الخروج. النقاط المكتسبة: {pts}", ephemeral=True)
+        send_log(interaction, "شفت عسكري", f"العسكري: {interaction.user.mention}\nالنقاط المكتسبة: {pts}")
 
     @discord.ui.button(label="📊 نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts_final")
     async def my_pts(self, interaction, button):
         pts = load_data().get(str(interaction.user.id), 0)
-        embed = discord.Embed(title="📊 استعلام النقاط", description=f"نقاطك الحالية هي: {pts}", color=discord.Color.gold())
-        await interaction.response.edit_message(content="", embed=embed)
+        await interaction.response.send_message(f"📊 نقاطك الحالية: {pts}", ephemeral=True)
+
+    @discord.ui.button(label="📋 المباشرين", style=discord.ButtonStyle.secondary, custom_id="show_active_shifts")
+    async def show_active(self, interaction, button):
+        if not active_shifts:
+            return await interaction.response.send_message("❌ لا يوجد عساكر على رأس العمل حالياً.", ephemeral=True)
+        active_users = [f"<@{uid}>" for uid in active_shifts.keys()]
+        await interaction.response.send_message("👮‍♂️ قائمة المباشرين حالياً:\n" + "\n".join(active_users), ephemeral=True)
 
 class AdminModal(Modal, title="إدارة النقاط"):
     m_id = TextInput(label="آيدي العسكري")
@@ -66,11 +73,9 @@ class AdminModal(Modal, title="إدارة النقاط"):
         mid = get_clean_id(self.m_id.value)
         data = load_data()
         val = int(self.reason.value) if self.reason.value.isdigit() else 1
-        
         if self.act.value == "تصفير": data[mid] = 0
         elif self.act.value == "إضافة": data[mid] = data.get(mid, 0) + val
         elif self.act.value == "خصم": data[mid] = data.get(mid, 0) - val
-        
         save_data(data)
         await interaction.response.send_message(f"✅ تم تحديث نقاط <@{mid}>", ephemeral=True)
         send_log(interaction, "إدارة نقاط", f"العسكري: <@{mid}>\nالعملية: {self.act.value}\nالقيمة: {val}")
@@ -91,6 +96,7 @@ class CriminalModal(Modal, title="سجل القبض"):
         data[uid] = data.get(uid, 0) + pts
         save_data(data)
         await interaction.response.send_message(f"✅ تم القبض! أضيفت لك {pts} نقطة.", ephemeral=True)
+        send_log(interaction, "عملية قبض", f"العسكري: {interaction.user.mention}\nالمجرم: {self.name.value}\nالنقاط: {pts}")
 
 class FinalCriminalView(View):
     def __init__(self): super().__init__(timeout=None)
@@ -114,4 +120,4 @@ async def setup_admin(ctx): await ctx.send("لوحة القادة:", view=AdminC
 async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=FinalCriminalView())
 
 bot.run(os.environ.get('DISCORD_TOKEN'))
-
+ 
