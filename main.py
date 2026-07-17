@@ -30,18 +30,18 @@ def send_log(interaction, title, description):
     channel = bot.get_channel(LOG_CHANNEL_ID)
     if channel:
         embed = discord.Embed(title=f"📝 {title}", description=description, color=discord.Color.blue())
-        embed.set_footer(text=f"بواسطة: {interaction.user.display_name}")
         bot.loop.create_task(channel.send(embed=embed))
 
+# --- لوحة الشفتات ---
 class ShiftView(View):
     def __init__(self): super().__init__(timeout=None)
     
-    @discord.ui.button(label="🟢 دخول الشفت", style=discord.ButtonStyle.green, custom_id="shift_in_final")
+    @discord.ui.button(label="🟢 دخول", style=discord.ButtonStyle.green, custom_id="shift_in_final")
     async def clock_in(self, interaction, button):
         active_shifts[str(interaction.user.id)] = time.time()
         await interaction.response.send_message("🟢 تم تسجيل دخولك.", ephemeral=True)
 
-    @discord.ui.button(label="🔴 خروج الشفت", style=discord.ButtonStyle.red, custom_id="shift_out_final")
+    @discord.ui.button(label="🔴 خروج", style=discord.ButtonStyle.red, custom_id="shift_out_final")
     async def clock_out(self, interaction, button):
         start = active_shifts.pop(str(interaction.user.id), None)
         if not start: return await interaction.response.send_message("❌ لم تسجل دخولك!", ephemeral=True)
@@ -50,25 +50,23 @@ class ShiftView(View):
         data[str(interaction.user.id)] = data.get(str(interaction.user.id), 0) + pts
         save_data(data)
         await interaction.response.send_message(f"🔴 تم الخروج. النقاط المكتسبة: {pts}", ephemeral=True)
-        send_log(interaction, "شفت عسكري", f"العسكري: {interaction.user.mention}\nالنقاط المكتسبة: {pts}")
 
     @discord.ui.button(label="📊 نقاطي", style=discord.ButtonStyle.blurple, custom_id="my_pts_final")
     async def my_pts(self, interaction, button):
         pts = load_data().get(str(interaction.user.id), 0)
-        await interaction.response.send_message(f"📊 نقاطك الحالية: {pts}", ephemeral=True)
+        await interaction.response.send_message(f"📊 نقاطك المحدثة حالياً: {pts}", ephemeral=True)
 
-    @discord.ui.button(label="📋 المباشرين", style=discord.ButtonStyle.secondary, custom_id="show_active_shifts")
+    @discord.ui.button(label="📋 المباشرين", style=discord.ButtonStyle.secondary, custom_id="show_active_final")
     async def show_active(self, interaction, button):
-        if not active_shifts:
-            return await interaction.response.send_message("❌ لا يوجد عساكر على رأس العمل حالياً.", ephemeral=True)
-        active_users = [f"<@{uid}>" for uid in active_shifts.keys()]
-        await interaction.response.send_message("👮‍♂️ قائمة المباشرين حالياً:\n" + "\n".join(active_users), ephemeral=True)
+        if not active_shifts: return await interaction.response.send_message("❌ لا يوجد عساكر بالخدمة.", ephemeral=True)
+        users = [f"<@{uid}>" for uid in active_shifts.keys()]
+        await interaction.response.send_message("👮‍♂️ قائمة المباشرين:\n" + "\n".join(users), ephemeral=True)
 
+# --- لوحة القادة ---
 class AdminModal(Modal, title="إدارة النقاط"):
     m_id = TextInput(label="آيدي العسكري")
     act = TextInput(label="العملية (خصم/إضافة/تصفير)")
-    reason = TextInput(label="الكمية أو السبب")
-    
+    reason = TextInput(label="القيمة")
     async def on_submit(self, interaction):
         mid = get_clean_id(self.m_id.value)
         data = load_data()
@@ -78,16 +76,23 @@ class AdminModal(Modal, title="إدارة النقاط"):
         elif self.act.value == "خصم": data[mid] = data.get(mid, 0) - val
         save_data(data)
         await interaction.response.send_message(f"✅ تم تحديث نقاط <@{mid}>", ephemeral=True)
-        send_log(interaction, "إدارة نقاط", f"العسكري: <@{mid}>\nالعملية: {self.act.value}\nالقيمة: {val}")
 
 class AdminControlView(View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="⚙️ إدارة النقاط", style=discord.ButtonStyle.danger, custom_id="admin_manage_final")
     async def manage(self, interaction, button): await interaction.response.send_modal(AdminModal())
+    
+    @discord.ui.button(label="🏆 قائمة المتصدرين", style=discord.ButtonStyle.primary, custom_id="top_list_final")
+    async def top_list(self, interaction, button):
+        data = load_data()
+        sorted_data = sorted(data.items(), key=lambda x: x[1], reverse=True)[:10]
+        msg = "🏆 أعلى 10 عساكر بالنقاط:\n" + "\n".join([f"<@{uid}>: {pts}" for uid, pts in sorted_data])
+        await interaction.response.send_message(msg, ephemeral=True)
 
+# --- لوحة القبض ---
 class CriminalModal(Modal, title="سجل القبض"):
     name = TextInput(label="اسم المجرم")
-    duration = TextInput(label="مدة السجن (بالدقائق)")
+    duration = TextInput(label="مدة السجن")
     async def on_submit(self, interaction):
         dur = int(self.duration.value)
         pts = 6 if dur <= 40 else 10 if dur <= 80 else 12 if dur <= 180 else 15
@@ -96,7 +101,6 @@ class CriminalModal(Modal, title="سجل القبض"):
         data[uid] = data.get(uid, 0) + pts
         save_data(data)
         await interaction.response.send_message(f"✅ تم القبض! أضيفت لك {pts} نقطة.", ephemeral=True)
-        send_log(interaction, "عملية قبض", f"العسكري: {interaction.user.mention}\nالمجرم: {self.name.value}\nالنقاط: {pts}")
 
 class FinalCriminalView(View):
     def __init__(self): super().__init__(timeout=None)
@@ -120,4 +124,4 @@ async def setup_admin(ctx): await ctx.send("لوحة القادة:", view=AdminC
 async def setup_crime(ctx): await ctx.send("لوحة القبض:", view=FinalCriminalView())
 
 bot.run(os.environ.get('DISCORD_TOKEN'))
- 
+
